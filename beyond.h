@@ -44,21 +44,9 @@ BEYOND_STATIC_ASSERT(sizeof(float) == 4, float_size_must_be_4);
 BEYOND_STATIC_ASSERT(sizeof(double) == 8, double_size_must_be_8);
 
 /* #############################################################################
- * # BEYOND Helper Functions
+ * # BEYOND Builtin Memory Functions
  * #############################################################################
  */
-BEYOND_API BEYOND_INLINE unsigned int beyond_strlen(char *str)
-{
-  char *s = str;
-
-  while (*s)
-  {
-    s++;
-  }
-
-  return (unsigned int)(s - str);
-}
-
 BEYOND_API BEYOND_INLINE void *beyond_memset(void *s, int c, unsigned int n)
 {
   unsigned char *p = (unsigned char *)s;
@@ -69,6 +57,19 @@ BEYOND_API BEYOND_INLINE void *beyond_memset(void *s, int c, unsigned int n)
   }
 
   return s;
+}
+
+BEYOND_API BEYOND_INLINE void *beyond_memcpy(void *dest, void *src, unsigned int count)
+{
+  char *dest8 = (char *)dest;
+  char *src8 = (char *)src;
+
+  while (count--)
+  {
+    *dest8++ = *src8++;
+  }
+
+  return dest;
 }
 
 BEYOND_API BEYOND_INLINE void *beyond_memmove(void *dest, void *src, unsigned int n)
@@ -104,9 +105,27 @@ BEYOND_API BEYOND_INLINE void *beyond_memmove(void *dest, void *src, unsigned in
 }
 
 /* #############################################################################
- * # BEYOND Communication Protocol
+ * # BEYOND Common Station & Satellite API
  * #############################################################################
  */
+typedef void *beyond_lock_t;
+typedef void *beyond_context_t;
+
+typedef int (*beyond_func_init)(beyond_context_t context);
+typedef int (*beyond_func_send)(beyond_context_t context, void *buffer, int size);
+typedef int (*beyond_func_receive)(beyond_context_t context, void *buffer, int size, void *from_addr);
+
+/* #############################################################################
+ * # BEYOND Satellite API
+ * #############################################################################
+ */
+typedef struct beyond_api
+{
+  beyond_func_init func_init;
+  beyond_func_send func_send;
+  beyond_func_receive func_receive;
+
+} beyond_api;
 
 #endif /* BEYOND_H */
 
