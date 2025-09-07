@@ -37,7 +37,7 @@ For more information please look at the "beyond.h" file or take a look at the "e
 Download or clone beyond.h and include it in your project.
 
 ```C
-#include "beyond.h" /* Beyond Network Layer */
+#include "beyond.h" /* Beyond Communication Layer */
 
 int main() {
 
