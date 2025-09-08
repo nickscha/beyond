@@ -39,7 +39,71 @@ Download or clone beyond.h and include it in your project.
 ```C
 #include "beyond.h" /* Beyond Communication Layer */
 
+/* (1) Define a struct or memory block holding the data to be transmitted */
+typedef struct satellite_packet
+{
+    long tick;
+    float x;
+    float y;
+
+} satellite_packet;
+
+/* (2) Define a transmit and/or recieve function */
+int satellite_transmit(
+  beyond_handle handle,
+  beyond_context context, 
+  void *payload, 
+  int payload_capacity, 
+  unsigned int *payload_size
+)
+{
+    satellite_packet *packet = (satellite_packet *)context;
+
+    /* It is important and required by the user to lock/unlock critical sections/mutexes */
+    beyond_lock(handle);
+    packet->y += 0.1f;
+    beyond_unlock(handle);
+
+    /* The size of the payload */
+    *payload_size = sizeof(satellite_packet);
+
+    beyond_memcpy(((char *)payload), packet, sizeof(satellite_packet));
+
+    return 1;
+}
+
 int main() {
+    satellite_packet context = {0};
+
+    /* Deploy the satellite sending data to the station */
+    /* This call is non-blocking!                       */
+    beyond_handle satellite = beyond_satellite_deploy(
+        BEYOND_COMMUNICATION_TYPE_UDP,
+        satellite_transmit,
+        0, /* No receive function in this example */
+        beyond_address_init("127.0.0.1", 8080),
+        &context);
+    
+    if (!satellite)
+    {
+        return 1;
+    }
+
+    /* Satellite might be started already        */
+    /* Lock data when modifying the context data */
+    beyond_lock(satellite);
+    context.x = 600.0f;
+    context.y = 10.0f;
+    beyond_unlock(satellite);
+
+    while (1)
+    {
+        beyond_lock(satellite);
+        context.x += 1.0f;
+        beyond_unlock(satellite);
+    }
+
+    beyond_satellite_destroy(satellite);
 
     return 0;
 }

@@ -121,9 +121,9 @@ typedef int (*beyond_func_receive)(beyond_context_t context, void *buffer, int s
  */
 typedef struct beyond_api
 {
-  beyond_func_init func_init;
-  beyond_func_send func_send;
-  beyond_func_receive func_receive;
+  beyond_func_init init;
+  beyond_func_send send;
+  beyond_func_receive receive;
 
 } beyond_api;
 
