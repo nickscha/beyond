@@ -30,6 +30,15 @@ LICENSE
 #define BEYOND_API static
 #endif
 
+typedef int beyond_bool;
+
+#ifndef true
+#define true 1
+#endif
+#ifndef false
+#define false 0
+#endif
+
 /* #############################################################################
  * # BEYOND Type Checks
  * #############################################################################
@@ -40,6 +49,7 @@ LICENSE
 BEYOND_STATIC_ASSERT(sizeof(unsigned char) == 1, unsigned_char_size_must_be_1);
 BEYOND_STATIC_ASSERT(sizeof(unsigned short) == 2, unsigned_short_size_must_be_2);
 BEYOND_STATIC_ASSERT(sizeof(unsigned int) == 4, unsigned_int_size_must_be_4);
+BEYOND_STATIC_ASSERT(sizeof(beyond_bool) == 4, int_size_must_be_4);
 BEYOND_STATIC_ASSERT(sizeof(float) == 4, float_size_must_be_4);
 BEYOND_STATIC_ASSERT(sizeof(double) == 8, double_size_must_be_8);
 
@@ -108,24 +118,59 @@ BEYOND_API BEYOND_INLINE void *beyond_memmove(void *dest, void *src, unsigned in
  * # BEYOND Common Station & Satellite API
  * #############################################################################
  */
-typedef void *beyond_lock_t;
-typedef void *beyond_context_t;
+#define BEYOND_NULL ((void *)0)
 
-typedef int (*beyond_func_init)(beyond_context_t context);
-typedef int (*beyond_func_send)(beyond_context_t context, void *buffer, int size);
-typedef int (*beyond_func_receive)(beyond_context_t context, void *buffer, int size, void *from_addr);
+typedef void *beyond_handle;
+typedef void *beyond_context;
+typedef beyond_bool (*beyond_function_transmit)(beyond_handle handle, beyond_context context, void *payload, unsigned int payload_capacity, unsigned int *payload_size);
+typedef beyond_bool (*beyond_function_receive)(beyond_handle handle, beyond_context context, void *payload, unsigned int payload_capacity, unsigned int payload_size);
+
+typedef enum beyond_communication_type
+{
+  BEYOND_COMMUNICATION_TYPE_UDP = 0
+
+} beyond_communication_type;
+
+typedef struct beyond_address
+{
+  char *ip;
+  int port;
+
+} beyond_address;
+
+BEYOND_API BEYOND_INLINE beyond_address beyond_address_init(char *ip, int port)
+{
+  beyond_address result;
+  result.ip = ip;
+  result.port = port;
+
+  return result;
+}
 
 /* #############################################################################
  * # BEYOND Satellite API
  * #############################################################################
  */
-typedef struct beyond_api
+typedef struct beyond_satellite_api
 {
-  beyond_func_init init;
-  beyond_func_send send;
-  beyond_func_receive receive;
 
-} beyond_api;
+  beyond_communication_type type;
+  int transmit_rate_hz;
+  beyond_function_transmit transmit;
+  beyond_function_receive receive;
+  beyond_address address;
+  beyond_context context;
+  char *transmit_payload;
+  unsigned int transmit_payload_capacity;
+  char *receive_payload;
+  unsigned int receive_payload_capacity;
+
+} beyond_satellite_api;
+
+beyond_handle beyond_satellite_deploy(beyond_satellite_api *api);
+beyond_bool beyond_satellite_destroy(beyond_handle satellite);
+void beyond_satellite_lock(beyond_handle satellite);
+void beyond_satellite_unlock(beyond_handle satellite);
 
 #endif /* BEYOND_H */
 

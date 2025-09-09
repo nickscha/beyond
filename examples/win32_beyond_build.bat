@@ -9,6 +9,8 @@ REM Build the station
 set SOURCE_NAME=win32_beyond_station
 cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_LINKER%
 
-REM Build the satellite
+REM satellite builds
 set SOURCE_NAME=win32_beyond_satellite
+
+REM Build the satellite
 cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_LINKER%

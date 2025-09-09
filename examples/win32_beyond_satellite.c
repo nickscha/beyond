@@ -1,257 +1,51 @@
 #include "../beyond.h"
-#include "win32_printf.h"
+#include "../win32_beyond_satellite.h"
 
-#ifndef _WINDOWS_
-
-#define INFINITE 0xffffffff
-#define WSABASEERR 10000
-#define SOL_SOCKET 0xffff
-#define SO_RCVTIMEO 0x1006
-#define WSAETIMEDOUT (WSABASEERR + 60)
-#define INVALID_SOCKET (unsigned long)(~0)
-#define SOCKET_ERROR (-1)
-#define AF_INET 2
-#define SOCK_DGRAM 2
-#define IPPROTO_UDP 17
-
-typedef struct WSADATA
-{
-    unsigned short wVersion;
-    unsigned short wHighVersion;
-    char szDescription[257];
-    char szSystemStatus[129];
-    unsigned short iMaxSockets;
-    unsigned short iMaxUdpDg;
-    char *lpVendorInfo;
-
-} WSADATA, *LPWSADATA;
-
-typedef struct in_addr
-{
-    unsigned long s_addr;
-} in_addr;
-
-typedef struct sockaddr
-{
-    unsigned short sa_family;
-    char sa_data[14];
-} sockaddr;
-
-typedef struct sockaddr_in
-{
-    short sin_family;
-    unsigned short sin_port;
-    in_addr sin_addr;
-    char sin_zero[8];
-} sockaddr_in;
-
-typedef struct CRITICAL_SECTION
-{
-    void *DebugInfo;
-    long LockCount;
-    long RecursionCount;
-    void *OwningThread;
-    void *LockSemaphore;
-    unsigned long SpinCount;
-} CRITICAL_SECTION;
-
-typedef unsigned long (*PTHREAD_START_ROUTINE)(void *lpThreadParameter);
-
-#define WIN32_BEYOND_SATELLITE_API(r) __declspec(dllimport) r __stdcall
-
-WIN32_BEYOND_SATELLITE_API(int)
-WSAStartup(unsigned short wVersionRequested, LPWSADATA lpWSAData);
-WIN32_BEYOND_SATELLITE_API(int)
-WSACleanup(void);
-WIN32_BEYOND_SATELLITE_API(int)
-WSAGetLastError(void);
-WIN32_BEYOND_SATELLITE_API(unsigned long)
-socket(int af, int type, int protocol);
-WIN32_BEYOND_SATELLITE_API(int)
-setsockopt(unsigned long s, int level, int optname, char *optval, int optlen);
-WIN32_BEYOND_SATELLITE_API(int)
-closesocket(unsigned long s);
-WIN32_BEYOND_SATELLITE_API(unsigned short)
-htons(unsigned short hostshort);
-WIN32_BEYOND_SATELLITE_API(int)
-sendto(unsigned long s, char *buf, int len, int flags, sockaddr *to, int tolen);
-WIN32_BEYOND_SATELLITE_API(int)
-recvfrom(unsigned long s, char *buf, int len, int flags, sockaddr *from, int *fromlen);
-WIN32_BEYOND_SATELLITE_API(void)
-Sleep(unsigned long dwMilliseconds);
-WIN32_BEYOND_SATELLITE_API(void)
-EnterCriticalSection(void *lpCriticalSection);
-WIN32_BEYOND_SATELLITE_API(void)
-LeaveCriticalSection(void *lpCriticalSection);
-WIN32_BEYOND_SATELLITE_API(void)
-InitializeCriticalSection(void *lpCriticalSection);
-WIN32_BEYOND_SATELLITE_API(void)
-DeleteCriticalSection(void *lpCriticalSection);
-WIN32_BEYOND_SATELLITE_API(int)
-inet_pton(int Family, char *pStringBuf, void *pAddr);
-WIN32_BEYOND_SATELLITE_API(void *)
-CreateThread(void *lpThreadAttributes, unsigned long dwStackSize, PTHREAD_START_ROUTINE lpStartAddress, void *lpParameter, unsigned long dwCreationFlags, unsigned long *lpThreadId);
-#else
-typedef struct sockaddr sockaddr;
-typedef struct sockaddr_in sockaddr_in;
-#endif /* _WINDOWS_ */
-
-/* The packet the client sends to the server, containing its input. */
-typedef struct beyond_satellite_user_input_packet
+typedef struct satellite_packet
 {
     long tick;
     float x;
     float y;
 
-} beyond_satellite_user_input_packet;
+} satellite_packet;
 
-/* A single user's state within the server's world. */
-typedef struct beyond_satellite_state_user
+BEYOND_API BEYOND_INLINE beyond_bool satellite_transmit(beyond_handle handle, beyond_context context, void *payload, unsigned int payload_capacity, unsigned int *payload_size)
 {
-    int user_id;
-    float x;
-    float y;
+    satellite_packet *packet = (satellite_packet *)context;
 
-} beyond_satellite_state_user;
-
-/* The packet the server sends back, containing all user states. */
-#define MAX_USERS 100
-typedef struct beyond_satellite_state_packet
-{
-    long tick;
-    long last_processed_tick;
-    int user_count;
-    beyond_satellite_state_user users[MAX_USERS];
-
-} beyond_satellite_state_packet;
-
-/* A context for the threads, holding shared resources */
-#define INPUT_HISTORY_SIZE 600 /* Store up to 10 seconds of history at 60 FPS */
-typedef struct beyond_satellite_thread_context
-{
-    unsigned long socket;
-    sockaddr_in server_addr;
-    CRITICAL_SECTION pos_lock;
-    float x_pos;
-    float y_pos;
-    long last_sent_tick;
-    beyond_satellite_user_input_packet input_history[INPUT_HISTORY_SIZE];
-    long history_tail;
-
-} beyond_satellite_thread_context;
-
-BEYOND_API BEYOND_INLINE unsigned long beyond_satellite_send(void *lpParam)
-{
-    beyond_satellite_thread_context *context = (beyond_satellite_thread_context *)lpParam;
-    unsigned long client_socket = context->socket;
-    sockaddr_in server_addr = context->server_addr;
-    beyond_satellite_user_input_packet input_packet;
-    int server_addr_len = sizeof(server_addr);
-
-    win32_printf("[satellite] communication with station established");
-
-    while (1)
+    if (payload_capacity < (int)sizeof(satellite_packet))
     {
-        /* 1. Prepare the input packet */
-        EnterCriticalSection(&context->pos_lock);
-        context->last_sent_tick++;
-        input_packet.x = context->x_pos;
-        input_packet.y = context->y_pos;
-        input_packet.tick = context->last_sent_tick;
-        LeaveCriticalSection(&context->pos_lock);
-
-        /* 2. Store the packet in the history buffer */
-        context->input_history[context->history_tail] = input_packet;
-        context->history_tail = (context->history_tail + 1) % INPUT_HISTORY_SIZE;
-
-        /* 3. Send the packet to the server */
-        sendto(client_socket, (char *)&input_packet, sizeof(input_packet), 0, (sockaddr *)&server_addr, server_addr_len);
-
-        /* 4. Simulate movement (this is the "client-side prediction") */
-        EnterCriticalSection(&context->pos_lock);
-        context->x_pos += 1.0f;
-        context->y_pos += 0.5f;
-        LeaveCriticalSection(&context->pos_lock);
-
-        Sleep(10); /* Simulates sending at a 100 Hz rate */
+        return false;
     }
-    return 0;
+
+    beyond_satellite_lock(handle);
+    packet->y += 0.1f;
+    beyond_satellite_unlock(handle);
+
+    *payload_size = sizeof(satellite_packet);
+
+    win32_printf("[satellite] data: %.3lf, %.3lf", (double)packet->x, (double)packet->y);
+
+    beyond_memcpy(((char *)payload), packet, sizeof(satellite_packet));
+
+    return true;
 }
 
-BEYOND_API BEYOND_INLINE unsigned long beyond_satellite_receive(void *lpParam)
+BEYOND_API BEYOND_INLINE beyond_bool satellite_receive(beyond_handle handle, beyond_context context, void *payload, unsigned int payload_capacity, unsigned int payload_size)
 {
-    beyond_satellite_thread_context *context = (beyond_satellite_thread_context *)lpParam;
-    unsigned long client_socket = context->socket;
-    beyond_satellite_state_packet received_packet;
-    int bytes_received;
-    int from_addr_len;
-    sockaddr_in from_addr;
-    int i;
-    unsigned long timeout = 1000; /* 1-second timeout */
+    win32_printf("recieved: %d", payload_size);
 
-    setsockopt(client_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+    (void)handle;
+    (void)context;
+    (void)payload;
+    (void)payload_capacity;
+    (void)payload_size;
 
-    win32_printf("[satellite] receiver started");
-
-    while (1)
-    {
-        from_addr_len = sizeof(from_addr);
-
-        bytes_received = recvfrom(client_socket, (char *)&received_packet, sizeof(received_packet), 0,
-                                  (sockaddr *)&from_addr, &from_addr_len);
-
-        if (bytes_received > 0 && bytes_received == sizeof(beyond_satellite_state_packet))
-        {
-            win32_printf("[satellite] Received State Update at Station Tick: %d (Last Processed: %d)", received_packet.tick, received_packet.last_processed_tick);
-
-            /* Lag Compensation Logic */
-            /* 1. Find our own position update in the server's packet */
-            for (i = 0; i < received_packet.user_count; ++i)
-            {
-                if (received_packet.users[i].user_id == 0) /* Our ID is 0 for this example */
-                {
-                    /* 2. We've found our user state. Now, find the corresponding input packet in our history.  */
-                    long server_processed_tick = received_packet.last_processed_tick;
-                    long history_index = (context->history_tail - (context->last_sent_tick - server_processed_tick) - 1 + INPUT_HISTORY_SIZE) % INPUT_HISTORY_SIZE;
-
-                    /* 3. Reconcile our state. */
-                    EnterCriticalSection(&context->pos_lock);
-
-                    /* Correct our position to match the server's "ground truth" */
-                    context->x_pos = received_packet.users[i].x;
-                    context->y_pos = received_packet.users[i].y;
-
-                    /* Re-apply inputs from the server-processed tick to the present */
-                    while (history_index != context->history_tail)
-                    {
-                        context->x_pos += 1.0f;
-                        context->y_pos += 0.5f;
-                        history_index = (history_index + 1) % INPUT_HISTORY_SIZE;
-                    }
-
-                    LeaveCriticalSection(&context->pos_lock);
-
-                    win32_printf("[satellite]  - Reconciled Position to x:%.3lf, y:%.3lf", (double)context->x_pos, (double)context->y_pos);
-                    break;
-                }
-            }
-
-            /* Print positions of all users */
-            for (i = 0; i < received_packet.user_count; i++)
-            {
-                win32_printf("[satellite]  - User %d at x:%.3lf, y:%.3lf", received_packet.users[i].user_id, (double)received_packet.users[i].x, (double)received_packet.users[i].y);
-            }
-        }
-        else if (bytes_received == SOCKET_ERROR)
-        {
-            if (WSAGetLastError() == WSAETIMEDOUT)
-            {
-                win32_printf("[satellite] Receiver thread: No packets received in a while...");
-            }
-        }
-    }
-    return 0;
+    return true;
 }
+
+#define TRANSMIT_PAYLOAD_CAPACITY 1024
+#define RECEIVE_PAYLOAD_CAPACITY 4096
 
 #ifdef __clang__
 #elif __GNUC__
@@ -263,45 +57,47 @@ __attribute((force_align_arg_pointer))
 int
 mainCRTStartup(void)
 {
-    WSADATA wsaData;
-    unsigned long client_socket;
-    sockaddr_in server_addr;
-    beyond_satellite_thread_context context;
+    char transmit_payload[TRANSMIT_PAYLOAD_CAPACITY];
+    char receive_payload[RECEIVE_PAYLOAD_CAPACITY];
 
-    win32_printf("[satellite] startup");
+    satellite_packet context = {0};
 
-    if (WSAStartup(0x0202, &wsaData) != 0)
+    beyond_handle satellite;
+    beyond_satellite_api api = {0};
+
+    api.type = BEYOND_COMMUNICATION_TYPE_UDP;
+    api.transmit_rate_hz = 60;
+    api.transmit = satellite_transmit;
+    api.receive = satellite_receive;
+    api.address = beyond_address_init("127.0.0.1", 8080);
+    api.context = &context;
+    api.transmit_payload = transmit_payload;
+    api.transmit_payload_capacity = TRANSMIT_PAYLOAD_CAPACITY;
+    api.receive_payload = receive_payload;
+    api.receive_payload_capacity = RECEIVE_PAYLOAD_CAPACITY;
+
+    satellite = beyond_satellite_deploy(&api);
+
+    if (!satellite)
     {
-        win32_printf("[satellite] socket initialization failed");
         return 1;
     }
-    client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (client_socket == INVALID_SOCKET)
+
+    beyond_satellite_lock(satellite);
+    context.x = 600.0f;
+    context.y = 10.0f;
+    beyond_satellite_unlock(satellite);
+
+    /* Run the main application loop */
+    while (1)
     {
-        win32_printf("[satellite] socket failed.");
-        WSACleanup();
-        return 1;
+        beyond_satellite_lock(satellite);
+        context.x += 1.0f;
+        beyond_satellite_unlock(satellite);
+        Sleep(100);
     }
 
-    beyond_memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr.s_addr);
-    server_addr.sin_port = htons(8080);
-    context.socket = client_socket;
-    context.server_addr = server_addr;
-    InitializeCriticalSection(&context.pos_lock);
-    context.x_pos = 0.0;
-    context.y_pos = 0.0;
-    context.last_sent_tick = 0;
-    context.history_tail = 0;
-
-    CreateThread((void *)0, 0, beyond_satellite_send, &context, 0, (void *)0);
-    CreateThread((void *)0, 0, beyond_satellite_receive, &context, 0, (void *)0);
-    Sleep(INFINITE);
-
-    closesocket(client_socket);
-    WSACleanup();
-    DeleteCriticalSection(&context.pos_lock);
+    beyond_satellite_destroy(satellite);
 
     return 0;
 }
