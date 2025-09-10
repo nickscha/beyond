@@ -1,5 +1,9 @@
 #include "../beyond.h"
-#include "../win32_beyond_satellite.h"
+#include "win32_printf.h"
+
+#ifndef _WINDOWS_
+__declspec(dllimport) void __stdcall Sleep(unsigned long dwMilliseconds);
+#endif
 
 typedef struct satellite_packet
 {

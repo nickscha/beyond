@@ -12,5 +12,8 @@ cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_L
 REM satellite builds
 set SOURCE_NAME=win32_beyond_satellite
 
-REM Build the satellite
-cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_LINKER%
+echo "[beyond] build satellite dll"
+cc -s -O2 -x c -shared %DEF_COMPILER_FLAGS% ../%SOURCE_NAME%.h -o %SOURCE_NAME%.dll %DEF_FLAGS_LINKER%
+
+echo "[beyond] build satellite"
+cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_LINKER% -L. -lwin32_beyond_satellite

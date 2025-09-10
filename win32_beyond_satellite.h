@@ -471,6 +471,21 @@ beyond_bool beyond_satellite_destroy(beyond_handle handle)
     return true;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+#ifdef __clang__
+#elif __GNUC__
+__attribute((externally_visible))
+#endif
+#ifdef __i686__
+__attribute((force_align_arg_pointer))
+#endif
+int
+DllMainCRTStartup(void)
+{
+    return 1;
+}
+#endif
+
 /*
    ------------------------------------------------------------------------------
    This software is available under 2 licenses -- choose whichever you prefer.
