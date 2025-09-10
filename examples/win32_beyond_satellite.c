@@ -1,9 +1,5 @@
 #include "../beyond.h"
-#include "win32_printf.h"
-
-#ifndef _WINDOWS_
-__declspec(dllimport) void __stdcall Sleep(unsigned long dwMilliseconds);
-#endif
+#include "../win32_beyond_satellite.h"
 
 typedef struct satellite_packet
 {
@@ -28,7 +24,7 @@ BEYOND_API BEYOND_INLINE beyond_bool satellite_transmit(beyond_handle handle, be
 
     *payload_size = sizeof(satellite_packet);
 
-    win32_printf("[satellite] data: %.3lf, %.3lf", (double)packet->x, (double)packet->y);
+    beyond_satellite_printf("[satellite] data: %.3lf, %.3lf", (double)packet->x, (double)packet->y);
 
     beyond_memcpy(((char *)payload), packet, sizeof(satellite_packet));
 
@@ -37,7 +33,7 @@ BEYOND_API BEYOND_INLINE beyond_bool satellite_transmit(beyond_handle handle, be
 
 BEYOND_API BEYOND_INLINE beyond_bool satellite_receive(beyond_handle handle, beyond_context context, void *payload, unsigned int payload_capacity, unsigned int payload_size)
 {
-    win32_printf("recieved: %d", payload_size);
+    beyond_satellite_printf("recieved: %d", payload_size);
 
     (void)handle;
     (void)context;
@@ -98,7 +94,7 @@ mainCRTStartup(void)
         beyond_satellite_lock(satellite);
         context.x += 1.0f;
         beyond_satellite_unlock(satellite);
-        Sleep(100);
+        beyond_satellite_sleep(100);
     }
 
     beyond_satellite_destroy(satellite);

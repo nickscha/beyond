@@ -18,17 +18,15 @@ LICENSE
 /* Check if using C99 or later (inline is supported) */
 #if __STDC_VERSION__ >= 199901L
 #define BEYOND_INLINE inline
-#define BEYOND_API static
 #elif defined(__GNUC__) || defined(__clang__)
 #define BEYOND_INLINE __inline__
-#define BEYOND_API static
 #elif defined(_MSC_VER)
 #define BEYOND_INLINE __inline
-#define BEYOND_API static
 #else
 #define BEYOND_INLINE
-#define BEYOND_API static
 #endif
+
+#define BEYOND_API static
 
 typedef int beyond_bool;
 
@@ -171,6 +169,8 @@ beyond_handle beyond_satellite_deploy(beyond_satellite_api *api);
 beyond_bool beyond_satellite_destroy(beyond_handle satellite);
 void beyond_satellite_lock(beyond_handle satellite);
 void beyond_satellite_unlock(beyond_handle satellite);
+void beyond_satellite_sleep(unsigned long milliseconds);
+void beyond_satellite_printf(char *format, ...);
 
 #endif /* BEYOND_H */
 

@@ -147,7 +147,7 @@ BEYOND_API BEYOND_INLINE unsigned int win32_strlen(char *str)
     return (unsigned int)(s - str);
 }
 
-BEYOND_API BEYOND_INLINE void win32_printf(char *format, ...)
+void beyond_satellite_printf(char *format, ...)
 {
     char buffer[256];
     char *buf_ptr = buffer;
@@ -295,6 +295,11 @@ typedef struct beyond_satellite_handle_internal
 
 } beyond_satellite_handle_internal;
 
+void beyond_satellite_sleep(unsigned long milliseconds)
+{
+    Sleep(milliseconds);
+}
+
 void beyond_satellite_lock(beyond_handle satellite)
 {
     if (satellite)
@@ -380,7 +385,7 @@ BEYOND_API BEYOND_INLINE unsigned long beyond_satellite_receive_thread(void *lpP
         {
             if (WSAGetLastError() == WSAETIMEDOUT)
             {
-                win32_printf("[satellite] Receiver thread: No packets received in a while...");
+                beyond_satellite_printf("[satellite] Receiver thread: No packets received in a while...");
             }
         }
     }
@@ -400,7 +405,7 @@ beyond_handle beyond_satellite_deploy(beyond_satellite_api *api)
 
     if (!api)
     {
-        win32_printf("[satellite][win32] no valid api entry passed!");
+        beyond_satellite_printf("[satellite][win32] no valid api entry passed!");
         VirtualFree(satellite, 0, MEM_RELEASE);
         return BEYOND_NULL;
     }
@@ -410,7 +415,7 @@ beyond_handle beyond_satellite_deploy(beyond_satellite_api *api)
     /* Initialize Winsock */
     if (WSAStartup(0x0202, &wsaData) != 0)
     {
-        win32_printf("[satellite] WSAStartup failed.");
+        beyond_satellite_printf("[satellite] WSAStartup failed.");
         VirtualFree(satellite, 0, MEM_RELEASE);
         return BEYOND_NULL;
     }
@@ -420,7 +425,7 @@ beyond_handle beyond_satellite_deploy(beyond_satellite_api *api)
 
     if (satellite->socket == INVALID_SOCKET)
     {
-        win32_printf("[satellite] Socket creation failed.");
+        beyond_satellite_printf("[satellite] Socket creation failed.");
         WSACleanup();
         VirtualFree(satellite, 0, MEM_RELEASE);
         return BEYOND_NULL;
@@ -435,13 +440,13 @@ beyond_handle beyond_satellite_deploy(beyond_satellite_api *api)
     if (satellite->api->transmit)
     {
         satellite->transmit_thread_handle = CreateThread(BEYOND_NULL, 0, beyond_satellite_transmit_thread, satellite, 0, BEYOND_NULL);
-        win32_printf("[beyond][satellite] deployed: transmitting to station at %s:%d", satellite->api->address.ip, satellite->api->address.port);
+        beyond_satellite_printf("[beyond][satellite] deployed: transmitting to station at %s:%d", satellite->api->address.ip, satellite->api->address.port);
     }
 
     if (satellite->api->receive)
     {
         satellite->receive_thread_handle = CreateThread(BEYOND_NULL, 0, beyond_satellite_receive_thread, satellite, 0, BEYOND_NULL);
-        win32_printf("[beyond][satellite] deployed: receiving from station at %s:%d", satellite->api->address.ip, satellite->api->address.port);
+        beyond_satellite_printf("[beyond][satellite] deployed: receiving from station at %s:%d", satellite->api->address.ip, satellite->api->address.port);
     }
 
     return satellite;
