@@ -15,5 +15,5 @@ set SOURCE_NAME=win32_beyond_satellite
 echo "[beyond] build satellite dll"
 cc -s -O2 -x c -shared %DEF_COMPILER_FLAGS% ../%SOURCE_NAME%.h -o %SOURCE_NAME%.dll %DEF_FLAGS_LINKER%
 
-echo "[beyond] build satellite"
+echo "[beyond] build satellite linked with dll"
 cc -s -O2 %DEF_COMPILER_FLAGS% %SOURCE_NAME%.c -o %SOURCE_NAME%.exe %DEF_FLAGS_LINKER% -L. -lwin32_beyond_satellite
