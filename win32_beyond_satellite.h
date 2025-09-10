@@ -476,6 +476,10 @@ beyond_bool beyond_satellite_destroy(beyond_handle handle)
     return true;
 }
 
+/* #############################################################################
+ * # For Windows DLL builds we have to include at least DllMainCRTStartup
+ * #############################################################################
+ */
 #if defined(_WIN32) || defined(_WIN64)
 #ifdef __clang__
 #elif __GNUC__
