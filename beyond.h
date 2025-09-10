@@ -165,6 +165,12 @@ typedef struct beyond_satellite_api
 
 } beyond_satellite_api;
 
+/* #############################################################################
+ * # BEYOND Satellite Platform API
+ * #############################################################################
+ * 
+ * These function have to be implemented by the platform layer (e.g. win32_, linux_, ...)
+ */
 beyond_handle beyond_satellite_deploy(beyond_satellite_api *api);
 beyond_bool beyond_satellite_destroy(beyond_handle satellite);
 void beyond_satellite_lock(beyond_handle satellite);
